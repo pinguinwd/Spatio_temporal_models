@@ -4,7 +4,11 @@ import rasterio
 import numpy as np
 from matplotlib import pyplot
 from sklearn.linear_model import LogisticRegression
-import numpy as np
+from fastkml import kml
+from shapely.geometry import shape
+import pickle
+import zipfile
+from shapely.geometry import Polygon
 
 #%%
 # Path to the folder containing the TIFF files
@@ -197,4 +201,4 @@ print("Intercept:", intercept)
 print("Coefficients:")
 for i, coef in enumerate(coefficients):
     print(f"Coefficient for {list(proxy_dict.keys())[i]}: {coef}")
-# %%
+

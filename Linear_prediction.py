@@ -75,8 +75,4 @@ def find_coef_and_intercept(data_dict, proxy_dict, startyear, endyear):
 
     return coefficients, intercept
 
-#%%
-shapefiles = ['natural', 'waterways']
-data_dict_old, feature_dict_old, landuse_dict_old = generate_data(False, shapefiles)
-coefficients, intercept = find_coef_and_intercept(data_dict_old, feature_dict_old, 1984, 2013)
-# %%
+

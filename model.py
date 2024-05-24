@@ -1,4 +1,8 @@
 # %%
+import numpy as np
+from load_data import *
+from Linear_prediction import *
+#%%
 #Define the logistic CA model
 
 #calculate suitability
@@ -47,19 +51,18 @@ def neighborhood_density(array, i, j):
     return density
 
 
-def linear_predictor(i, j, coefficients):
+def linear_predictor(i, j, coefficients, intercept, proxy_dict):
     # Start with the intercept
-    linear_pred = coefficients['b0']
+    linear_pred = intercept
     
     # Iterate over each coefficient and corresponding proxy key
-    for idx, key in enumerate(proxy_dict.keys(), start=1):
-        # Ensure the coefficient for this key exists
-        coeff_key = f'b{idx}'
-        if coeff_key in coefficients:
+    for idx, key in enumerate(proxy_dict.keys()):
+        # Ensure we do not exceed the number of coefficients
+        if idx < len(coefficients):
             # Add to the linear predictor the product of coefficient and the value at (i, j) in the proxy array
-            linear_pred += coefficients[coeff_key] * proxy_dict[key][i, j]
+            linear_pred += coefficients[idx] * proxy_dict[key][i, j]
         else:
-            raise KeyError(f"Coefficient {coeff_key} not found in coefficients dictionary.")
+            raise IndexError(f"Index {idx} out of range for coefficients list.")
     
     return linear_pred
 
@@ -68,29 +71,95 @@ def stochastic_perturbation():
     lambda_val = np.random.uniform(low=1e-10, high=1)
     return 1 + np.log(lambda_val) * alpha
 
-def land_constraint(i,j):
-    return 1
+def land_constraint(i,j, land_use_dict):
+    if land_use_dict == {}:
+        return 1
 
-def development_probability(i, j, array, coefficients):
-    pg_ij = linear_predictor(i,j, coefficients)
+def development_probability(i, j, array, proxy_dict, land_use_dict, coefficients, intercept):
+    pg_ij = linear_predictor(i,j, coefficients, intercept, proxy_dict)
     omega_ij = neighborhood_density(array, i, j)
     ra_ij = stochastic_perturbation()
-    land_ij = land_constraint(i,j)
+    land_ij = land_constraint(i,j, land_use_dict)
     return pg_ij * omega_ij * ra_ij * land_ij
 
-def run_model(data_dict, feat_dict, landuse_dict, first_year, last_year):
-    #calculate how much cells need development
-    #take the array from first year
-    #calculate probability of development for each cell
-    #develop x cells with highest probability 
-    #calculate overal accuracy and FoM
-    #return predicted array and oa and fom
-    first_value = 'data_' + str(startyear)
-    last_value = 'data_' + str(endyear)
+def calculate_overall_accuracy(predicted_array, actual_array):
+    # Calculate the number of correctly classified cells
+    correctly_classified = np.sum(predicted_array == actual_array)
+    # Calculate the total number of cells
+    total_cells = predicted_array.size
+    # Calculate overall accuracy
+    overall_accuracy = correctly_classified / total_cells
+    return overall_accuracy
+
+def calculate_figure_of_merit(predicted_array, actual_array):
+    # Identify changes between actual and predicted arrays
+    change_predicted = (predicted_array != actual_array).astype(int)
+    change_actual = (actual_array != np.roll(actual_array, shift=1, axis=0)).astype(int) | \
+                    (actual_array != np.roll(actual_array, shift=1, axis=1)).astype(int)
+    
+    # Calculate areas
+    A = np.sum((change_predicted == 1) & (change_actual == 1))  # Correctly predicted change
+    B = np.sum((change_predicted == 0) & (change_actual == 1))  # Observed change but predicted non-change
+    C = np.sum((change_predicted == 1) & (change_actual == 0))  # Predicted change but no change occurred
+    D = np.sum((change_predicted == 0) & (change_actual == 0))  # Correctly predicted non-change
+    
+    # Calculate figure of merit
+    if A + B + C + D == 0:
+        figure_of_merit = 0
+    else:
+        figure_of_merit = A / (A + B + C + D)
+    
+    return figure_of_merit
+
+def run_model(data_dict, proxy_dict, land_use_dict, first_year, last_year, coefficients, intercept):
+    first_value = 'data_' + str(first_year)
+    last_value = 'data_' + str(last_year)
 
     # Get arrays from start and end years
     start_array = data_dict[first_value]
     end_array = data_dict[last_value]
-    pass
 
+    necessary_development = np.sum(end_array) - np.sum(start_array)
 
+    rows, columns = start_array.shape
+
+    evaluation_list = []
+
+    # Iterate over all cells in the start_array
+    for i in range(rows):
+        for j in range(columns):
+            # Check the conditions
+            if feature_dict['distance_to_Tiananmen_Square'][i, j] > 0 and start_array[i, j] == 0:
+                # Evaluate the cell using development_probability function
+                evaluation_score = development_probability(i, j, start_array, proxy_dict, land_use_dict, coefficients, intercept)
+
+                # Store the score along with its coordinates
+                evaluation_list.append((evaluation_score, (i, j)))
+
+    # Sort the evaluations based on the scores in descending order
+    evaluation_list.sort(reverse=True, key=lambda x: x[0])
+
+    # Determine the number of cells to develop
+    num_cells_to_develop = int(necessary_development)
+
+    # Change the necessary amount of cells from 0 to 1 based on the highest evaluation scores
+    predicted_array = start_array.copy()
+    for idx in range(num_cells_to_develop):
+        score, (i, j) = evaluation_list[idx]
+        predicted_array[i, j] = 1
+
+    oa = calculate_overall_accuracy(predicted_array, end_array)
+    fom = calculate_figure_of_merit(predicted_array, end_array)
+
+    return predicted_array, oa, fom
+#%%
+
+shapefiles = ['natural', 'waterways']
+data_dict, feature_dict, landuse_dict = generate_data(False, shapefiles)
+
+first_year = 1984
+last_year = 2013
+
+coefficients, intercept = find_coef_and_intercept(data_dict, feature_dict, first_year, last_year)
+predicted_array, oa, fom = run_model(data_dict, feature_dict, landuse_dict, first_year, last_year, coefficients, intercept)
+# %%

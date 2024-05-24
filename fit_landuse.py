@@ -69,7 +69,7 @@ def compare_arrays(big_array, small_array, x, y, zoom_factors, angle):
     difference_array[(small_array == 1) & (cut_array == 1)] = 3 
     
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    titles = ['Cut Array', 'Small Array', 'Difference Array']
+    titles = ['Old map', 'New map', 'Map overlay']
     arrays = [cut_array, small_array, difference_array]
 
     for ax, arr, title in zip(axes, arrays, titles):
@@ -81,7 +81,7 @@ def compare_arrays(big_array, small_array, x, y, zoom_factors, angle):
     cbar = fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.95)
     cbar.set_label('Value')
     cbar.set_ticks([0, 1, 2, 3])
-    cbar.set_ticklabels(['Both 0', '0 in Small, 1 in Cut', '1 in Small, 0 in Cut', 'Both 1'])
+    cbar.set_ticklabels(['Both 0', 'Absent in new, presents in Old', 'Present in New, Absent in Old', 'Both Present'])
     
     plt.savefig('compare.png')
 
@@ -109,5 +109,5 @@ def resize_and_rotate_array(input_array, zoom_factors, angle):
 
 
 
-compare_arrays(og_array, new_array, 542, 172, 0.54, -4.5)
+compare_arrays(og_array, new_array, 542, 170, 0.549, -7)
 # %%

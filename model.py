@@ -71,9 +71,19 @@ def stochastic_perturbation():
     lambda_val = np.random.uniform(low=1e-10, high=1)
     return 1 + np.log(lambda_val) * alpha
 
-def land_constraint(i,j, land_use_dict):
-    if land_use_dict == {}:
+def land_constraint(i, j, land_use_dict):
+    # If land_use_dict is empty, return 1
+    if not land_use_dict:
         return 1
+    
+    # Iterate through each array in the land_use_dict
+    for key, array in land_use_dict.items():
+        # Check if the value at (i, j) is not 255
+        if array[i, j] != 255:
+            return 0
+
+    # If all values in all arrays at (i, j) are 255, return 1
+    return 1
 
 def development_probability(i, j, array, proxy_dict, land_use_dict, coefficients, intercept):
     pg_ij = linear_predictor(i,j, coefficients, intercept, proxy_dict)
@@ -155,7 +165,7 @@ def run_model(data_dict, proxy_dict, land_use_dict, first_year, last_year, coeff
 #%%
 
 shapefiles = ['natural', 'waterways']
-data_dict, feature_dict, landuse_dict = generate_data(False, shapefiles)
+data_dict, feature_dict, landuse_dict = generate_data(True, shapefiles)
 
 first_year = 1984
 last_year = 2013
